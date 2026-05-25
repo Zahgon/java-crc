@@ -6,7 +6,6 @@ import java.util.function.IntFunction;
 // Copyright 2016, S&K Software Development Ltd.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-
 // Package crc implements generic CRC calculations up to 64 bits wide.
 // It aims to be fairly complete, allowing users to match pretty much
 // any CRC algorithm used in the wild by choosing appropriate Parameters.
@@ -14,69 +13,77 @@ import java.util.function.IntFunction;
 //
 // This package has been largely inspired by Ross Williams' 1993 paper "A Painless Guide to CRC Error Detection Algorithms".
 // A good list of parameter sets for various CRC algorithms can be found at http://reveng.sourceforge.net/crc-catalogue/.
-
 /**
- This class provides utility functions for CRC calculation using either canonical straight forward approach
- or using "fast" table-driven implementation. Note, that even though table-driven implementation is much faster
- for processing large amounts of data and is commonly referred as fast algorithm, sometimes it might be quicker to
- calculate CRC using canonical algorithm then to prepare the table for table-driven implementation.
- 
-<p> 
-Using src is easy. Here is an example of calculating CCITT crc in one call using canonical approach. 
-<pre>
-{@code
-    String data = "123456789";
-    long ccittCrc = CRC.calculateCRC(CRC.Parameters.CCITT, data.getBytes());
-    System.out.printf("CRC is 0x%04X\n", ccittCrc); // prints "CRC is 0x29B1"
-}
-</pre>
+ *  This class provides utility functions for CRC calculation using either canonical straight forward approach
+ *  or using "fast" table-driven implementation. Note, that even though table-driven implementation is much faster
+ *  for processing large amounts of data and is commonly referred as fast algorithm, sometimes it might be quicker to
+ *  calculate CRC using canonical algorithm then to prepare the table for table-driven implementation.
+ *
+ * <p>
+ * Using src is easy. Here is an example of calculating CCITT crc in one call using canonical approach.
+ * <pre>
+ * {@code
+ *     String data = "123456789";
+ *     long ccittCrc = CRC.calculateCRC(CRC.Parameters.CCITT, data.getBytes());
+ *     System.out.printf("CRC is 0x%04X\n", ccittCrc); // prints "CRC is 0x29B1"
+ * }
+ * </pre>
+ *
+ * <p>
+ * For larger data, table driven implementation is faster. Here is how to use it.
+ *
+ * <pre>
+ * {@code
+ *         String data = "123456789";
+ *        	CRC tableDriven = new CRC(CRC.Parameters.XMODEM);
+ *        	long xmodemCrc = tableDriven.calculateCRC(data.getBytes());
+ *         System.out.printf("CRC is 0x%04X\n", xmodemCrc); // prints "CRC is 0x31C3"
+ * }
+ * </pre>
+ *
+ * <p>
+ *         You can also reuse CRC object instance for another crc calculation.
+ * <p>
+ *         Given that the only state for a CRC calculation is the "intermediate value"
+ *         and it is stored in your code, you can even use same CRC instance to calculate CRC
+ *         of multiple data sets in parallel.
+ *         And if data is too big, you may feed it in chunks
+ * <pre>
+ * {@code
+ *        long curValue = tableDriven.init(); // initialize intermediate value
+ *        curValue = tableDriven.update(curValue, "123456789".getBytes()); // feed first chunk
+ *        curValue = tableDriven.update(curValue, "01234567890".getBytes()); // feed next chunk
+ *        long xmodemCrc2 = tableDriven.finalCRC(curValue); // gets CRC of whole data ("12345678901234567890")
+ *        System.out.printf("CRC is 0x%04X\n", xmodemCrc2); // prints "CRC is 0x2C89"
+ * }
+ * </pre>
+ */
+public class CRC {
 
-<p>
-For larger data, table driven implementation is faster. Here is how to use it.
-
-<pre>
-{@code
-        String data = "123456789";
-       	CRC tableDriven = new CRC(CRC.Parameters.XMODEM);
-       	long xmodemCrc = tableDriven.calculateCRC(data.getBytes());
-        System.out.printf("CRC is 0x%04X\n", xmodemCrc); // prints "CRC is 0x31C3"
-}
-</pre>
-
-<p>
-        You can also reuse CRC object instance for another crc calculation.
-<p>
-        Given that the only state for a CRC calculation is the "intermediate value"
-        and it is stored in your code, you can even use same CRC instance to calculate CRC
-        of multiple data sets in parallel.
-        And if data is too big, you may feed it in chunks
-<pre>
-{@code
-       long curValue = tableDriven.init(); // initialize intermediate value
-       curValue = tableDriven.update(curValue, "123456789".getBytes()); // feed first chunk
-       curValue = tableDriven.update(curValue, "01234567890".getBytes()); // feed next chunk
-       long xmodemCrc2 = tableDriven.finalCRC(curValue); // gets CRC of whole data ("12345678901234567890")
-       System.out.printf("CRC is 0x%04X\n", xmodemCrc2); // prints "CRC is 0x2C89"
-}
-</pre>
-
- * */
-public class CRC
-{
     /**
      *  Parameters represents set of parameters defining a particular CRC algorithm.
-     * */
-    public static class Parameters
-    {
-        private int width;   // Width of the CRC expressed in bits
-        private long polynomial; // Polynomial used in this CRC calculation
-        private boolean reflectIn;   // Refin indicates whether input bytes should be reflected
-        private boolean reflectOut;   // Refout indicates whether output bytes should be reflected
-        private long init; // Init is initial value for CRC calculation
-        private long finalXor; // Xor is a value for final xor to be applied before returning result
+     */
+    public static class Parameters {
 
-        public Parameters(int width, long polynomial, long init, boolean reflectIn, boolean reflectOut, long finalXor)
-        {
+        // Width of the CRC expressed in bits
+        private int width;
+
+        // Polynomial used in this CRC calculation
+        private long polynomial;
+
+        // Refin indicates whether input bytes should be reflected
+        private boolean reflectIn;
+
+        // Refout indicates whether output bytes should be reflected
+        private boolean reflectOut;
+
+        // Init is initial value for CRC calculation
+        private long init;
+
+        // Xor is a value for final xor to be applied before returning result
+        private long finalXor;
+
+        public Parameters(int width, long polynomial, long init, boolean reflectIn, boolean reflectOut, long finalXor) {
             this.width = width;
             this.polynomial = polynomial;
             this.reflectIn = reflectIn;
@@ -85,8 +92,7 @@ public class CRC
             this.finalXor = finalXor;
         }
 
-        public Parameters(Parameters orig)
-        {
+        public Parameters(Parameters orig) {
             width = orig.width;
             polynomial = orig.polynomial;
             reflectIn = orig.reflectIn;
@@ -95,61 +101,84 @@ public class CRC
             finalXor = orig.finalXor;
         }
 
-        public int getWidth()
-        {
-            return width;
+        public int getWidth() {
+            throw new UnsupportedOperationException("STUB: not implemented");
         }
 
-        public long getPolynomial()
-        {
-            return polynomial;
+        public long getPolynomial() {
+            throw new UnsupportedOperationException("STUB: not implemented");
         }
 
-        public boolean isReflectIn()
-        {
-            return reflectIn;
+        public boolean isReflectIn() {
+            throw new UnsupportedOperationException("STUB: not implemented");
         }
 
-        public boolean isReflectOut()
-        {
-            return reflectOut;
+        public boolean isReflectOut() {
+            throw new UnsupportedOperationException("STUB: not implemented");
         }
 
-        public long getInit()
-        {
-            return init;
+        public long getInit() {
+            throw new UnsupportedOperationException("STUB: not implemented");
         }
 
-        public long getFinalXor()
-        {
-            return finalXor;
+        public long getFinalXor() {
+            throw new UnsupportedOperationException("STUB: not implemented");
         }
 
-        /** CCITT CRC parameters */
+        /**
+         * CCITT CRC parameters
+         */
         public static final Parameters CCITT = new Parameters(16, 0x1021, 0x00FFFF, false, false, 0x0);
-        /** CRC16 CRC parameters, also known as ARC */
+
+        /**
+         * CRC16 CRC parameters, also known as ARC
+         */
         public static final Parameters CRC16 = new Parameters(16, 0x8005, 0x0000, true, true, 0x0);
-        /** XMODEM is a set of CRC parameters commonly referred as "XMODEM" */
+
+        /**
+         * XMODEM is a set of CRC parameters commonly referred as "XMODEM"
+         */
         public static final Parameters XMODEM = new Parameters(16, 0x1021, 0x0000, false, false, 0x0);
-        /** XMODEM2 is another set of CRC parameters commonly referred as "XMODEM" */
+
+        /**
+         * XMODEM2 is another set of CRC parameters commonly referred as "XMODEM"
+         */
         public static final Parameters XMODEM2 = new Parameters(16, 0x8408, 0x0000, true, true, 0x0);
 
-        /** CRC32 is by far the most commonly used CRC-32 polynomial and set of parameters */
+        /**
+         * CRC32 is by far the most commonly used CRC-32 polynomial and set of parameters
+         */
         public static final Parameters CRC32 = new Parameters(32, 0x04C11DB7, 0x00FFFFFFFFL, true, true, 0x00FFFFFFFFL);
-        /** IEEE is an alias to CRC32 */
+
+        /**
+         * IEEE is an alias to CRC32
+         */
         public static final Parameters IEEE = CRC32;
-        /** Castagnoli polynomial. used in iSCSI. And also provided by hash/crc32 package. */
+
+        /**
+         * Castagnoli polynomial. used in iSCSI. And also provided by hash/crc32 package.
+         */
         public static final Parameters Castagnoli = new Parameters(32, 0x1EDC6F41L, 0x00FFFFFFFFL, true, true, 0x00FFFFFFFFL);
-        /** CRC32C is an alias to Castagnoli */
+
+        /**
+         * CRC32C is an alias to Castagnoli
+         */
         public static final Parameters CRC32C = Castagnoli;
-        /** Koopman polynomial */
+
+        /**
+         * Koopman polynomial
+         */
         public static final Parameters Koopman = new Parameters(32, 0x741B8CD7L, 0x00FFFFFFFFL, true, true, 0x00FFFFFFFFL);
 
-        /** CRC64ISO is set of parameters commonly known as CRC64-ISO */
+        /**
+         * CRC64ISO is set of parameters commonly known as CRC64-ISO
+         */
         public static final Parameters CRC64ISO = new Parameters(64, 0x000000000000001BL, 0xFFFFFFFFFFFFFFFFL, true, true, 0xFFFFFFFFFFFFFFFFL);
-        /** CRC64ECMA is set of parameters commonly known as CRC64-ECMA */
-        public static final Parameters CRC64ECMA = new Parameters(64, 0x42F0E1EBA9EA3693L, 0xFFFFFFFFFFFFFFFFL, true, true, 0xFFFFFFFFFFFFFFFFL);
 
+        /**
+         * CRC64ECMA is set of parameters commonly known as CRC64-ECMA
+         */
+        public static final Parameters CRC64ECMA = new Parameters(64, 0x42F0E1EBA9EA3693L, 0xFFFFFFFFFFFFFFFFL, true, true, 0xFFFFFFFFFFFFFFFFL);
     }
 
     /**
@@ -158,19 +187,14 @@ public class CRC
      * @param count indicates how many bits be rearranged
      * @return      the value with specified bits order reversed
      */
-    private static long reflect(long in, int count)
-    {
+    private static long reflect(long in, int count) {
         long ret = in;
-        for (int idx = 0; idx < count; idx++)
-        {
+        for (int idx = 0; idx < count; idx++) {
             long srcbit = 1L << idx;
             long dstbit = 1L << (count - idx - 1);
-            if ((in & srcbit) != 0)
-            {
+            if ((in & srcbit) != 0) {
                 ret |= dstbit;
-            }
-            else
-            {
+            } else {
                 ret = ret & (~dstbit);
             }
         }
@@ -185,9 +209,8 @@ public class CRC
      * @param  data data for the CRC calculation
      * @return      the CRC value of the data provided
      */
-    public static long calculateCRC(Parameters crcParams, byte[] data)
-    {
-        return calculateCRC(crcParams, data, 0, data.length);
+    public static long calculateCRC(Parameters crcParams, byte[] data) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -195,9 +218,8 @@ public class CRC
      * The part of the ByteBuffer that is read is from its current {@link ByteBuffer#position()} to {@link ByteBuffer#limit()}.
      * @see #calculateCRC(Parameters, byte[])
      */
-    public static long calculateCRC(Parameters crcParameters, ByteBuffer data)
-    {
-        return calculateCRC(crcParameters, data, data.position(), data.limit() - data.position());
+    public static long calculateCRC(Parameters crcParameters, ByteBuffer data) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -206,59 +228,20 @@ public class CRC
      * It is relatively slow for large amounts of data, but does not require
      * any preparation steps. As a result, it might be faster in some cases
      * then building a table required for faster calculation.
-
+     *
      * Note: this implementation follows section 8 ("A Straightforward CRC Implementation")
      * of Ross N. Williams paper as even though final/sample implementation of this algorithm
      * provided near the end of that paper (and followed by most other implementations)
      * is a bit faster, it does not work for polynomials shorter than 8 bits.
-
+     *
      * @param  crcParams CRC algorithm parameters
      * @param  data data for the CRC calculation
      * @param  offset the offset within the array of the first byte to be included in calculations
      * @param  length number of bytes to process
      * @return      the CRC value of the data provided
      */
-    public static long calculateCRC(Parameters crcParams, byte[] data, int offset, int length)
-    {
-        long curValue = crcParams.init;
-        long topBit = 1L << (crcParams.width - 1);
-        long mask = (topBit << 1) - 1;
-        int end = offset + length;
-
-        for (int i = offset; i < end; i ++)
-        {
-            long curByte = ((long)(data[i])) & 0x00FFL;
-            if (crcParams.reflectIn)
-            {
-                curByte = reflect(curByte, 8);
-            }
-
-            for (int j = 0x80; j != 0; j >>= 1)
-            {
-                long bit = curValue & topBit;
-                curValue <<= 1;
-
-                if ((curByte & j) != 0)
-                {
-                    bit ^= topBit;
-                }
-
-                if (bit != 0)
-                {
-                    curValue ^= crcParams.polynomial;
-                }
-            }
-
-        }
-
-        if (crcParams.reflectOut)
-        {
-            curValue = reflect(curValue, crcParams.width);
-        }
-
-        curValue = curValue ^ crcParams.finalXor;
-
-        return curValue & mask;
+    public static long calculateCRC(Parameters crcParams, byte[] data, int offset, int length) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -267,9 +250,8 @@ public class CRC
      * {@link ByteBuffer#get(int)} as the data supplier function.
      * @see #calculateCRC(Parameters, byte[], int, int)
      */
-    public static long calculateCRC(Parameters crcParams, ByteBuffer data, int offset, int length)
-    {
-        return calculateCRC(crcParams, data::get, offset, length);
+    public static long calculateCRC(Parameters crcParams, ByteBuffer data, int offset, int length) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -280,7 +262,7 @@ public class CRC
      * (typically, 10-20% slower in my tests and up to 30% slower in some cases). But if speed is important, you probably should
      * be using the table based variant anyway. Do your own profiling and see which one works best for you.
      * @see #calculateCRC(Parameters, byte[], int, int)
-
+     *
      * @param  crcParams CRC algorithm parameters
      * @param  dataSupplier a function taking an index of a byte and returning the byte; note that this algorithm process
      *                      bytes sequentially, so technically, dataSupplier can ignore the argument and just return a next
@@ -289,54 +271,17 @@ public class CRC
      * @param length indicates number of bytes to be processed.
      * @return      the CRC value of the data provided
      */
-    public static long calculateCRC(Parameters crcParams, IntFunction<Byte> dataSupplier, int offset, int length)
-    {
-        long curValue = crcParams.init;
-        long topBit = 1L << (crcParams.width - 1);
-        long mask = (topBit << 1) - 1;
-        int end = offset + length;
-
-        for (int i = offset; i < end; i ++)
-        {
-            long dataByte = dataSupplier.apply(i);
-            long curByte = dataByte & 0x00FFL;
-            if (crcParams.reflectIn)
-            {
-                curByte = reflect(curByte, 8);
-            }
-
-            for (int j = 0x80; j != 0; j >>= 1)
-            {
-                long bit = curValue & topBit;
-                curValue <<= 1;
-
-                if ((curByte & j) != 0)
-                {
-                    bit ^= topBit;
-                }
-
-                if (bit != 0)
-                {
-                    curValue ^= crcParams.polynomial;
-                }
-            }
-
-        }
-
-        if (crcParams.reflectOut)
-        {
-            curValue = reflect(curValue, crcParams.width);
-        }
-
-        curValue = curValue ^ crcParams.finalXor;
-
-        return curValue & mask;
+    public static long calculateCRC(Parameters crcParams, IntFunction<Byte> dataSupplier, int offset, int length) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     private Parameters crcParams;
-    private long   initValue;
+
+    private long initValue;
+
     private long[] crctable;
-    private long   mask;
+
+    private long mask;
 
     /**
      * Returns initial value for this CRC intermediate value
@@ -344,9 +289,8 @@ public class CRC
      * and finalCRC methods, possibly supplying data in chunks).
      * @return initial value for this CRC intermediate value
      */
-    public long init()
-    {
-        return initValue;
+    public long init() {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -358,35 +302,9 @@ public class CRC
      * @param offset is 0-based offset of the data to be processed in the array supplied
      * @param length indicates number of bytes to be processed.
      * @return updated intermediate value for this CRC
-     * */
-    public long update (long curValue, byte[] chunk, int offset, int length)
-    {
-        if (crcParams.reflectIn)
-        {
-            for (int i=0; i < length; i++)
-            {
-                byte v = chunk[offset+i];
-                curValue = crctable[(((byte)curValue) ^ v)&0x00FF]^(curValue >>> 8);
-            }
-        }
-        else if (crcParams.width<8)
-        {
-            for (int i=0; i < length; i++)
-            {
-                byte v = chunk[offset+i];
-                curValue = crctable[((((byte)(curValue << (8-crcParams.width))) ^ v)&0xFF)]^(curValue << 8);
-            }
-        }
-        else
-        {
-            for (int i=0; i < length; i++)
-            {
-                byte v = chunk[offset+i];
-                curValue = crctable[((((byte)(curValue >>> (crcParams.width - 8))) ^ v)&0xFF)]^(curValue << 8);
-            }
-        }
-
-        return curValue;
+     */
+    public long update(long curValue, byte[] chunk, int offset, int length) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -395,15 +313,14 @@ public class CRC
      * {@link ByteBuffer#get(int)} as the data supplier function.
      * @see #update(long, byte[], int, int)
      */
-    public long update (long curValue, ByteBuffer chunk, int offset, int length)
-    {
-        return update(curValue, chunk::get, offset, length);
+    public long update(long curValue, ByteBuffer chunk, int offset, int length) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
      * This method works exactly like {@link #update(long, byte[], int, int)} but provides extra
      * abstraction by supporting pretty much any source of bytes as long as a function to supply them can be defined.
-
+     *
      * Note: The extra level of abstraction does not come free - it comes with a function call for each byte retrieved/accessed.
      * As a result, this function is substantially slower then {@link #update(long, byte[], int, int)}. For short running processes
      * using pre-allocated byte buffers to copy data to and to pass to {@link #update(long, byte[], int, int)} will usually be faster
@@ -411,7 +328,7 @@ public class CRC
      * in my tests performance penalty eventually dropped to less than 1% when compared to {@link #update(long, byte[], int, int)}.
      * Do your own profiling and see which option works best for you.
      * @see #calculateCRC(Parameters, byte[], int, int)
-
+     *
      * @param curValue CRC intermediate value so far
      * @param  dataSupplier a function taking an index of a byte and returning the byte; note that this algorithm process
      *                      bytes sequentially, so technically, dataSupplier can ignore the argument and just return a next
@@ -420,34 +337,8 @@ public class CRC
      * @param length indicates number of bytes to be processed.
      * @return      the CRC value of the data provided
      */
-    public long update (long curValue, IntFunction<Byte> dataSupplier, int offset, int length)
-    {
-        if (crcParams.reflectIn)
-        {
-            for (int i=0; i < length; i++)
-            {
-                byte v = dataSupplier.apply(offset + i);
-                curValue = crctable[(((byte)curValue) ^ v)&0x00FF]^(curValue >>> 8);
-            }
-        }
-        else if (crcParams.width<8)
-        {
-            for (int i=0; i < length; i++)
-            {
-                byte v = dataSupplier.apply(offset + i);
-                curValue = crctable[((((byte)(curValue << (8-crcParams.width))) ^ v)&0xFF)]^(curValue << 8);
-            }
-        }
-        else
-        {
-            for (int i=0; i < length; i++)
-            {
-                byte v = dataSupplier.apply(offset + i);
-                curValue = crctable[((((byte)(curValue >>> (crcParams.width - 8))) ^ v)&0xFF)]^(curValue << 8);
-            }
-        }
-
-        return curValue;
+    public long update(long curValue, IntFunction<Byte> dataSupplier, int offset, int length) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -455,10 +346,9 @@ public class CRC
      * @param curValue CRC intermediate value so far
      * @param chunk data chunk to b processed by this call
      * @return updated intermediate value for this CRC
-     * */
-    public long update (long curValue, byte[] chunk)
-    {
-        return update(curValue, chunk, 0, chunk.length);
+     */
+    public long update(long curValue, byte[] chunk) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -468,34 +358,26 @@ public class CRC
      *
      * @see #update(long, IntFunction, int, int)
      */
-    public long update (long curValue, ByteBuffer chunk)
-    {
-        return update(curValue, chunk, chunk.position(), chunk.limit() - chunk.position());
+    public long update(long curValue, ByteBuffer chunk) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
      * This method should be called to retrieve actual CRC for the data processed so far.
      * @param curValue CRC intermediate value so far
      * @return calculated CRC
-     * */
-    public long finalCRC(long curValue)
-    {
-        long ret=curValue;
-        if (crcParams.reflectOut != crcParams.reflectIn)
-        {
-            ret = reflect(ret, crcParams.width);
-        }
-        return (ret ^ crcParams.finalXor) & mask;
+     */
+    public long finalCRC(long curValue) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
      * A convenience method allowing to calculate CRC in one call.
      * @param data is data to calculate CRC on
      * @return calculated CRC
-     * */
-    public long calculateCRC(byte[] data)
-    {
-        return calculateCRC(data, 0, data.length);
+     */
+    public long calculateCRC(byte[] data) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -503,27 +385,20 @@ public class CRC
      * calculate CRC of bytes from buffer's current {@link ByteBuffer#position()} to {@link ByteBuffer#limit()}.
      * @see #calculateCRC(ByteBuffer, int, int)
      */
-    public long calculateCRC(ByteBuffer data)
-    {
-        return calculateCRC(data, data.position(), data.limit() - data.position());
+    public long calculateCRC(ByteBuffer data) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
-    public long calculateCRC(byte[] data, int offset, int length)
-    {
-        long crc = init();
-        crc = update(crc, data, offset, length);
-        return finalCRC(crc);
+    public long calculateCRC(byte[] data, int offset, int length) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
      * This method works exactly like {@link #calculateCRC(byte[], int, int)} but uses a ByteBuffer.
      * @see #calculateCRC(byte[], int, int)
      */
-    public long calculateCRC(ByteBuffer data, int offset, int length)
-    {
-        long crc = init();
-        crc = update(crc, data, offset, length);
-        return finalCRC(crc);
+    public long calculateCRC(ByteBuffer data, int offset, int length) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -532,24 +407,18 @@ public class CRC
      * @param  crcParams CRC algorithm parameters
      * @throws RuntimeException if CRC sum width is not divisible by 8
      */
-    public CRC(Parameters crcParams)
-    {
+    public CRC(Parameters crcParams) {
         this.crcParams = new Parameters(crcParams);
-
         initValue = (crcParams.reflectIn) ? reflect(crcParams.init, crcParams.width) : crcParams.init;
-        this.mask = ((crcParams.width>=64) ? 0 : (1L << crcParams.width)) - 1;
+        this.mask = ((crcParams.width >= 64) ? 0 : (1L << crcParams.width)) - 1;
         this.crctable = new long[256];
-
         byte[] tmp = new byte[1];
-
         Parameters tableParams = new Parameters(crcParams);
-
         tableParams.init = 0;
         tableParams.reflectOut = tableParams.reflectIn;
         tableParams.finalXor = 0;
-        for (int i=0; i< 256; i++)
-        {
-            tmp[0] = (byte)i;
+        for (int i = 0; i < 256; i++) {
+            tmp[0] = (byte) i;
             crctable[i] = CRC.calculateCRC(tableParams, tmp);
         }
     }
@@ -561,11 +430,8 @@ public class CRC
      * @return      the final CRC value
      * @throws RuntimeException if crc being calculated is not 8-bit
      */
-    public byte finalCRC8 (long curValue)
-    {
-        if (crcParams.width != 8)
-            throw new RuntimeException("CRC width mismatch");
-        return (byte) finalCRC(curValue);
+    public byte finalCRC8(long curValue) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -575,11 +441,8 @@ public class CRC
      * @return      the final CRC value
      * @throws RuntimeException if crc being calculated is not 16-bit
      */
-    public short finalCRC16 (long curValue)
-    {
-        if (crcParams.width != 16)
-            throw new RuntimeException("CRC width mismatch");
-        return (short) finalCRC(curValue);
+    public short finalCRC16(long curValue) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
 
     /**
@@ -589,11 +452,7 @@ public class CRC
      * @return      the final CRC value
      * @throws RuntimeException if crc being calculated is not 32-bit
      */
-    public int finalCRC32(long curValue)
-    {
-        if (crcParams.width != 32)
-            throw new RuntimeException("CRC width mismatch");
-        return (int) finalCRC(curValue);
+    public int finalCRC32(long curValue) {
+        throw new UnsupportedOperationException("STUB: not implemented");
     }
-
 }

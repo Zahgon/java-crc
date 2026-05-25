@@ -2,3 +2,8 @@ target
 .DS_Store
 .idea
 *.iml
+
+.aider*
+logs/
+.commit0_scripts/
+.github/workflows/
